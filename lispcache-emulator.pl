@@ -1452,18 +1452,18 @@ sub printUsage
 {
 	print "lispcache-emulator Ver, 3.0 ttl.mod\n\n";
 	print "usage: " . $::PROGRAM . " [options] [file]\n";
-	print "<file>\t\t\t\t\t| trace file, or read stdin\n";
-	print " -m| --mode <text|pcap>\t\t\t| read from <text|pcap> file or stream\n";
+	print "<file>\t\t\t\t\t| read from a trace file, or from the stdin\n";
+	print " -m| --mode <text|pcap>\t\t\t| read in <text|pcap> format\n";
 	print " -t| --ttl <num>\t\t\t| TTL\n";
-	print " -g| --granularity <num|default=60>\t| set given granularity value\n";
-	print " -y| --symmetric <yes|no>\t\t| simulate symmetric LISP when yes\n";
+	print " -g| --granularity <num|default=60>\t| set a aggregation granularity in seconds\n";
+	print " -y| --symmetric <yes|no>\t\t| emulate symmetric LISP (yes) or original LISP (no)\n";
 	print " -s| --suffix <suffix>\t\t\t| append given suffix to the name of log files\n";
-	print " -u| --userlimit <num>\t\t\t| the maximum number of users. 0 for no user limit\n";
-	print " -h| --share <yes|no>\t\t\t| all xTRs will share a single LISP-Cache when yes, default=no\n";
-    print " -r| --failrecover <fail|recover>\t | this failure scenario? or recovery scenario?\n";
+	print " -u| --userlimit <num>\t\t\t| set a maximum number of end-users. 0 for no user limit\n";
+	print " -h| --share <yes|no>\t\t\t| all xTRs will share a single LISP-Cache (yes), default=no\n";
+    print " -r| --failrecover <fail|recover>\t| is this a failure scenario? or a recovery scenario?\n";
 	print " -f| --timepoint <num>\t\t\t| a timepoint of artificial failure/recovery. 0 for no failure/recovery.\n";
-    print " -a| --failxtr <0|1|...>\t\t| An array index of the xTR which fails in the scenario.\n";
-	print " -b| --nonfailxtr <0|1|...>\t\t| An array index of the xTR which runs without failure/recovery.\n";
+    print " -a| --failxtr <0|1|...>\t\t| an index of the xTR which fails in the middle of the emulation.\n";
+	print " -b| --nonfailxtr <0|1|...>\t\t| an index of the xTR which runs without failure/recovery.\n";
 	print " -q| --quiet <yes|no>\t\t\t| no output when yes\n";
 	print "\n";
 	print "example: " . $::PROGRAM . " -m pcap -t 60 -g 60 -y no -q no -u 10000 -h no -f 300 -a 0 -b 1 -s test-simulation  test-trace.pcap \n";
