@@ -184,8 +184,12 @@ my %patricia_int_prefixes_backup;
 
 for (my $i = 0 ; $i < $num_index ; $i++)
 {
-	%patricia_int_prefixes->{$xtr_indexes[$i]} = new Net::Patricia;
-	%patricia_int_prefixes_backup->{$xtr_indexes[$i]} = new Net::Patricia;
+    # Using a hash as a reference is deprecated ...
+    # Changing from % to $ is suggested ... from the dev community, but
+	#%patricia_int_prefixes->{$xtr_indexes[$i]} = new Net::Patricia;
+	$patricia_int_prefixes{$xtr_indexes[$i]} = new Net::Patricia;
+	$patricia_int_prefixes_backup{$xtr_indexes[$i]} = new Net::Patricia;
+
 }
 
 sysseek(PREFIXESINTERN, 0, SEEK_SET); # Rewinding file descriptor. 
@@ -194,8 +198,8 @@ while (my $prefix_intern = <PREFIXESINTERN>)
 {
 	$prefix_intern =~ s/\n//;
 	my ($index, $prefix) = split / /, $prefix_intern;
-	%patricia_int_prefixes->{$index}->add_string($prefix);
-	%patricia_int_prefixes_backup->{$index}->add_string($prefix);
+	$patricia_int_prefixes{$index}->add_string($prefix);
+	$patricia_int_prefixes_backup{$index}->add_string($prefix);
 }
 
 close(PREFIXESINTERN);
@@ -361,7 +365,7 @@ my %output;
 
 for (my $i = 0 ; $i < $num_index ; $i++)
 {
-	%output->{$xtr_indexes[$i]} = {};
+	$output{$xtr_indexes[$i]} = {};
 }
 
 # An example of the key of cache: 100.00.0.0/12
@@ -369,7 +373,7 @@ my %cache;
 
 for (my $i = 0 ; $i < $num_index ; $i++)
 {
-	%cache->{$xtr_indexes[$i]} = {};
+	$cache{$xtr_indexes[$i]} = {};
 }
 
 # An example of the key of flows:
@@ -378,7 +382,7 @@ my %flows;
 
 for (my $i = 0 ; $i < $num_index ; $i++)
 {
-	%flows->{$xtr_indexes[$i]} = {};
+	$flows{$xtr_indexes[$i]} = {};
 }
 
 # --------------------------------------------------
@@ -393,7 +397,7 @@ my %prefixes;
 
 for (my $i = 0 ; $i < $num_index ; $i++)
 {
-	%prefixes->{$xtr_indexes[$i]} = {};
+	$prefixes{$xtr_indexes[$i]} = {};
 }
 
 my $error;
@@ -407,7 +411,7 @@ for (my $i = 0 ; $i < $num_index ; $i++)
 
 if ($::FAIL_OR_RECOVER eq "recover")
 {
-	%patricia_int_prefixes->{$xtr_indexes[$::FAILXTR]}->climb(movePrefix);
+	$patricia_int_prefixes{$xtr_indexes[$::FAILXTR]}->climb(movePrefix);
 }
 
 prnt("Running\n"); 
@@ -436,31 +440,31 @@ else
 
 while (my ($line, %pkt_info) = getPacketInfo())
 {
-	last unless exists %pkt_info->{'timestamp'};
+	last unless exists $pkt_info{'timestamp'};
 
 	$packetnum++;
 
-	my $xtr_index = getXTRindex(%pkt_info->{'src_ip'}, %pkt_info->{'dst_ip'});
+	my $xtr_index = getXTRindex($pkt_info{'src_ip'}, $pkt_info{'dst_ip'});
 
 	next if $xtr_index == -1;
 
-	%timestamp->{$xtr_index} = %pkt_info->{'timestamp'};
-	$startTimeOfPkt = %pkt_info->{'timestamp'} if ($packetnum == 1);
+	$timestamp{$xtr_index} = $pkt_info{'timestamp'};
+	$startTimeOfPkt = $pkt_info{'timestamp'} if ($packetnum == 1);
 
 	# --------------------------------------------------
 	# If a packet is incoming packet	
     # --------------------------------------------------
-	my $dir = getFlowDir($xtr_index, %pkt_info->{'src_ip'}, %pkt_info->{'dst_ip'});
+	my $dir = getFlowDir($xtr_index, $pkt_info{'src_ip'}, $pkt_info{'dst_ip'});
 	my $key = undef;
 
 	# --------------------------------------------------
-	next unless userlimit(%pkt_info->{'src_ip'}, %pkt_info->{'dst_ip'}, $dir) == T;
+	next unless userlimit($pkt_info{'src_ip'}, $pkt_info{'dst_ip'}, $dir) == T;
 
 	if ($::SYMMETRIC eq "yes" || $dir == OUT)
 	{
     	$key = ($dir == IN) ? 
-		$patricia_bgp_prefixes->match_string(%pkt_info->{'src_ip'}):
-		$patricia_bgp_prefixes->match_string(%pkt_info->{'dst_ip'});
+		$patricia_bgp_prefixes->match_string($pkt_info{'src_ip'}):
+		$patricia_bgp_prefixes->match_string($pkt_info{'dst_ip'});
 	}
 
 	# --------------------------------------------------
@@ -473,11 +477,11 @@ while (my ($line, %pkt_info) = getPacketInfo())
 	# --------------------------------------------------
 	# Check if this packet is the first packet of traces
 	# --------------------------------------------------
-	if (%output->{$xtr_index}->{'slicestart'} == -1 && %output->{$xtr_index}->{'sliceend'} == -1)
+	if ($output{$xtr_index}->{'slicestart'} == -1 && $output{$xtr_index}->{'sliceend'} == -1)
 	{
 		for (my $i = 0 ; $i < $num_index ; $i++)
 		{
-			initOutput($xtr_indexes[$i], %pkt_info->{'timestamp'}, %pkt_info->{'timestamp'} + $::GRANULARITY);
+			initOutput($xtr_indexes[$i], $pkt_info{'timestamp'}, $pkt_info{'timestamp'} + $::GRANULARITY);
 		}
 
 		if ($::QUIET eq "no" && $linenum == 0)
@@ -494,7 +498,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 
 		if ($counter % 1000000 == 0)
 		{
-			my $tmpTime = %timestamp->{$xtr_index};
+			my $tmpTime = $timestamp{$xtr_index};
 			printf " " . `date -d \@$tmpTime` . " %06d +", ++$linenum;
 			$counter = 0;
 		}
@@ -503,13 +507,13 @@ while (my ($line, %pkt_info) = getPacketInfo())
 	# --------------------------------------------------
 	# (an artificial) Failure of a RLOCator.
 	# --------------------------------------------------
-	if ((%pkt_info->{'timestamp'} - $startTimeOfPkt) >= $::TIMEPOINT && $isEventHappened == F && $::FAIL_OR_RECOVER ne "none")
+	if (($pkt_info{'timestamp'} - $startTimeOfPkt) >= $::TIMEPOINT && $isEventHappened == F && $::FAIL_OR_RECOVER ne "none")
 	{
 		prnt("\bX");
 
 		if ($::FAIL_OR_RECOVER eq "fail")
 		{
-			%patricia_int_prefixes->{$xtr_indexes[$::FAILXTR]}->climb(movePrefix);
+			$patricia_int_prefixes{$xtr_indexes[$::FAILXTR]}->climb(movePrefix);
 		}
 		elsif ($::FAIL_OR_RECOVER eq "recover")
 		{
@@ -526,7 +530,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 		$isEventHappened = T;
 	}
 
-	if ((%pkt_info->{'timestamp'} - $startTimeOfPkt) >= ($::TIMEPOINT + $::TTL)
+	if (($pkt_info{'timestamp'} - $startTimeOfPkt) >= ($::TIMEPOINT + $::TTL)
         && $::FAIL_OR_RECOVER ne "none"
 		&& $isEventHappened == T
 	   	&& $is_xTR_recovered == F
@@ -542,7 +546,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 	# --------------------------------------------------
 	# Check if it is time to empty the output table
 	# --------------------------------------------------
-	if  (%pkt_info->{'timestamp'} >= %output->{$xtr_index}->{'sliceend'})
+	if  ($pkt_info{'timestamp'} >= $output{$xtr_index}->{'sliceend'})
 	{
 		if ($::SYMMETRIC eq "yes" || $dir == OUT)
 		{
@@ -550,7 +554,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 			{
 				my $xtr_index = $xtr_indexes[$i];
 	
-				finishTimeslot($xtr_index, %pkt_info->{'timestamp'});
+				finishTimeslot($xtr_index, $pkt_info{'timestamp'});
 			}
 		}
 	}
@@ -559,11 +563,11 @@ while (my ($line, %pkt_info) = getPacketInfo())
 	#
 	# --------------------------------------------------
 	my $flow = processFlow($xtr_index,
-						   %pkt_info->{'src_ip'},
-                           %pkt_info->{'dst_ip'},
-                           %pkt_info->{'src_port'},
-                           %pkt_info->{'dst_port'},
-                           %pkt_info->{'proto'});
+						   $pkt_info{'src_ip'},
+                           $pkt_info{'dst_ip'},
+                           $pkt_info{'src_port'},
+                           $pkt_info{'dst_port'},
+                           $pkt_info{'proto'});
 
 	# --------------------------------------------------
 	# 
@@ -573,7 +577,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 	# --------------------------------------------------
 	# Check if the entry is expired
 	# --------------------------------------------------
-	if (exists %cache->{$xtr_index}->{$key} and checkExpiredCache($xtr_index, $key, %pkt_info->{'timestamp'}) == F)
+	if (exists $cache{$xtr_index}->{$key} and checkExpiredCache($xtr_index, $key, $pkt_info{'timestamp'}) == F)
 	{	
 		# if so (hit)
 		if ($::SYMMETRIC eq "yes" || $dir == OUT)
@@ -581,12 +585,12 @@ while (my ($line, %pkt_info) = getPacketInfo())
 			# ----------------------------------------------
 			# Update the cache entry
 			# ----------------------------------------------
-			if (%cache->{$xtr_index}->{$key}->{'direction'} != BI && %cache->{$xtr_index}->{$key}->{'direction'} != $dir)
+			if ($cache{$xtr_index}->{$key}->{'direction'} != BI && $cache{$xtr_index}->{$key}->{'direction'} != $dir)
 			{
-				%cache->{$xtr_index}->{$key}->{'direction'} = BI;
-				%cache->{$xtr_index}->{$key}->{'ts_of_bidir'} = %pkt_info->{'timestamp'};
-				%cache->{$xtr_index}->{$key}->{'uni_dir_pkts'} += %cache->{$xtr_index}->{$key}->{'packets'};
-				%cache->{$xtr_index}->{$key}->{'uni_dir_byte'} += %cache->{$xtr_index}->{$key}->{'bytes'};
+				$cache{$xtr_index}->{$key}->{'direction'} = BI;
+				$cache{$xtr_index}->{$key}->{'ts_of_bidir'} = $pkt_info{'timestamp'};
+				$cache{$xtr_index}->{$key}->{'uni_dir_pkts'} += $cache{$xtr_index}->{$key}->{'packets'};
+				$cache{$xtr_index}->{$key}->{'uni_dir_byte'} += $cache{$xtr_index}->{$key}->{'bytes'};
 			}
 
 			# ----------------------------------------------
@@ -596,7 +600,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 			# ----------------------------------------------
 			if ($::SHARE eq "no")
 			{
-				%cache->{$xtr_index}->{$key}->{'last_update'} = %pkt_info->{'timestamp'};
+				$cache{$xtr_index}->{$key}->{'last_update'} = $pkt_info{'timestamp'};
 			}
 			else
 			{
@@ -604,28 +608,28 @@ while (my ($line, %pkt_info) = getPacketInfo())
 				{
 					my $tmp_xtr_index = $xtr_indexes[$i];
 					
-					if (exists %cache->{$tmp_xtr_index}->{$key})
+					if (exists $cache{$tmp_xtr_index}->{$key})
 					{
-						%cache->{$tmp_xtr_index}->{$key}->{'last_update'} = %pkt_info->{'timestamp'};
+						$cache{$tmp_xtr_index}->{$key}->{'last_update'} = $pkt_info{'timestamp'};
 					}
 				}
 			}
 
-			%cache->{$xtr_index}->{$key}->{'packets'}++;
-			%cache->{$xtr_index}->{$key}->{'bytes'} += %pkt_info->{'len'};
+			$cache{$xtr_index}->{$key}->{'packets'}++;
+			$cache{$xtr_index}->{$key}->{'bytes'} += $pkt_info{'len'};
 
 			if ($dir == IN)
 			{
-				%cache->{$xtr_index}->{$key}->{'in-packets'}++;
-				%cache->{$xtr_index}->{$key}->{'in-bytes'} += %pkt_info->{'len'};
+				$cache{$xtr_index}->{$key}->{'in-packets'}++;
+				$cache{$xtr_index}->{$key}->{'in-bytes'} += $pkt_info{'len'};
 			}
 			elsif ($dir == OUT)
 			{
-				%cache->{$xtr_index}->{$key}->{'out-packets'}++;
-				%cache->{$xtr_index}->{$key}->{'out-bytes'} += %pkt_info->{'len'};
+				$cache{$xtr_index}->{$key}->{'out-packets'}++;
+				$cache{$xtr_index}->{$key}->{'out-bytes'} += $pkt_info{'len'};
 			}
 
-			my $flowForCache = isFlowIn($xtr_index, $key, %pkt_info->{'src_ip'}, %pkt_info->{'dst_ip'});
+			my $flowForCache = isFlowIn($xtr_index, $key, $pkt_info{'src_ip'}, $pkt_info{'dst_ip'});
 			
 			if (defined($flowForCache))
 			{
@@ -633,7 +637,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 			}
 			else
 			{
-				createFlowForCache($xtr_index, $key, %pkt_info->{'src_ip'}, %pkt_info->{'dst_ip'});
+				createFlowForCache($xtr_index, $key, $pkt_info{'src_ip'}, $pkt_info{'dst_ip'});
 			}
 
 			# ---------------------------------------------
@@ -646,8 +650,8 @@ while (my ($line, %pkt_info) = getPacketInfo())
 			# %output->{'miss'}++; 
 			# %output->{'inmiss'}++ if % == IN;
 			# %output->{'outmiss'}++ if % == OUT;
-			%output->{$xtr_index}->{'hit'}++;
-			$dir == IN ? %output->{$xtr_index}->{'inhit'}++ : %output->{$xtr_index}->{'outhit'}++;
+			$output{$xtr_index}->{'hit'}++;
+			$dir == IN ? $output{$xtr_index}->{'inhit'}++ : $output{$xtr_index}->{'outhit'}++;
 		}
 	}
 	else
@@ -666,7 +670,7 @@ while (my ($line, %pkt_info) = getPacketInfo())
 			# ---------------------------------------------
 			if ($::SHARE eq "no")
 			{
-				createCacheEntry($xtr_index, $key, %pkt_info->{'timestamp'}, $dir, %pkt_info->{'len'});
+				createCacheEntry($xtr_index, $key, $pkt_info{'timestamp'}, $dir, $pkt_info{'len'});
 			}
 			else 
 			{
@@ -674,34 +678,34 @@ while (my ($line, %pkt_info) = getPacketInfo())
 				{
 					my $tmp_xtr_index = $xtr_indexes[$i];
 
-					createCacheEntry($tmp_xtr_index, $key, %pkt_info->{'timestamp'}, $dir, %pkt_info->{'len'});
+					createCacheEntry($tmp_xtr_index, $key, $pkt_info{'timestamp'}, $dir, $pkt_info{'len'});
 				}
 			} 
 
 			# ---------------------------------------------
 			# Update output table
 			# ---------------------------------------------
-			%output->{$xtr_index}->{'miss'}++; 
-			%output->{$xtr_index}->{'flows'}++; 
-			$dir == IN ? %output->{$xtr_index}->{'inmiss'}++ : %output->{$xtr_index}->{'outmiss'}++;
+			$output{$xtr_index}->{'miss'}++; 
+			$output{$xtr_index}->{'flows'}++; 
+			$dir == IN ? $output{$xtr_index}->{'inmiss'}++ : $output{$xtr_index}->{'outmiss'}++;
 
-			matchProtocol($xtr_index, %pkt_info->{'proto'}, %pkt_info->{'dst_port'}, MISS); 
+			matchProtocol($xtr_index, $pkt_info{'proto'}, $pkt_info{'dst_port'}, MISS); 
 		} 
 	} 
 
-	%output->{$xtr_index}->{'pkts'}++;
-	%output->{$xtr_index}->{'bytes'} += %pkt_info->{'len'};
-	matchProtocol($xtr_index, %pkt_info->{'proto'}, %pkt_info->{'dst_port'}, PKTS); 
+	$output{$xtr_index}->{'pkts'}++;
+	$output{$xtr_index}->{'bytes'} += $pkt_info{'len'};
+	matchProtocol($xtr_index, $pkt_info{'proto'}, $pkt_info{'dst_port'}, PKTS); 
 
-	$dir == IN ? %output->{$xtr_index}->{'inpkts'}++ : %output->{$xtr_index}->{'outpkts'}++;
+	$dir == IN ? $output{$xtr_index}->{'inpkts'}++ : $output{$xtr_index}->{'outpkts'}++;
 
 	if ($dir == IN) 
 	{
-		%output->{$xtr_index}->{'inbytes'} += %pkt_info->{'len'};
+		$output{$xtr_index}->{'inbytes'} += $pkt_info{'len'};
 	}
 	else
 	{
-		%output->{$xtr_index}->{'outbytes'} += %pkt_info->{'len'};
+		$output{$xtr_index}->{'outbytes'} += $pkt_info{'len'};
 	}
 }
 	
@@ -729,16 +733,16 @@ for (my $i = 0 ; $i < $num_index ; $i++)
 
 	while (countCacheEntries($xtr_index) > 0)
 	{
-		%timestamp->{$xtr_index}++;
-		checkExpiredCaches($xtr_index, %timestamp->{$xtr_index});
+		$timestamp{$xtr_index}++;
+		checkExpiredCaches($xtr_index, $timestamp{$xtr_index});
 
-		if (%timestamp->{$xtr_index} >= %output->{$xtr_index}->{'sliceend'})
+		if ($timestamp{$xtr_index} >= $output{$xtr_index}->{'sliceend'})
 		{
-			finishTimeslot($xtr_index, %timestamp->{$xtr_index});
+			finishTimeslot($xtr_index, $timestamp{$xtr_index});
 		}
 	}
 
-	finishTimeslot($xtr_index, %timestamp->{$xtr_index});
+	finishTimeslot($xtr_index, $timestamp{$xtr_index});
 }
 
 prnt("\nComplete: " . (time - $startTime) . " seconds\n\n");
@@ -754,22 +758,22 @@ sub createCacheEntry
 	my $dir = shift or NONE; # die "Parameter is missing: createCacheEntry->\$dir\n";
 	my $len = shift or 0;    # die"Parameter is missing: createCacheEntry->\$len\n";
 
-	%cache->{$xtr_index}->{$key}->{'inserted'}     = $timestamp;
-	%cache->{$xtr_index}->{$key}->{'last_update'}  = $timestamp;
-	%cache->{$xtr_index}->{$key}->{'packets'}      = 0;
-	%cache->{$xtr_index}->{$key}->{'in-packets'}   = 0; 
-	%cache->{$xtr_index}->{$key}->{'out-packets'}  = 0;
-	%cache->{$xtr_index}->{$key}->{'bytes'}        = 0;
-	%cache->{$xtr_index}->{$key}->{'in-bytes'}     = 0;
-	%cache->{$xtr_index}->{$key}->{'out-bytes'}    = 0;
-	%cache->{$xtr_index}->{$key}->{'first_dir'}    = $dir;
-	%cache->{$xtr_index}->{$key}->{'direction'}    = $dir;
-	%cache->{$xtr_index}->{$key}->{'ts_of_bidir'}  = 0;
-	%cache->{$xtr_index}->{$key}->{'uni_dir_pkts'} = 1;
-	%cache->{$xtr_index}->{$key}->{'uni_dir_byte'} = $len;
-	%cache->{$xtr_index}->{$key}->{'flows'}        = ();
-	%cache->{$xtr_index}->{$key}->{'ttl_end'}      = $timestamp + $::TTL;
-	%cache->{$xtr_index}->{$key}->{'num_renew'}    = 0;
+	$cache{$xtr_index}->{$key}->{'inserted'}     = $timestamp;
+	$cache{$xtr_index}->{$key}->{'last_update'}  = $timestamp;
+	$cache{$xtr_index}->{$key}->{'packets'}      = 0;
+	$cache{$xtr_index}->{$key}->{'in-packets'}   = 0; 
+	$cache{$xtr_index}->{$key}->{'out-packets'}  = 0;
+	$cache{$xtr_index}->{$key}->{'bytes'}        = 0;
+	$cache{$xtr_index}->{$key}->{'in-bytes'}     = 0;
+	$cache{$xtr_index}->{$key}->{'out-bytes'}    = 0;
+	$cache{$xtr_index}->{$key}->{'first_dir'}    = $dir;
+	$cache{$xtr_index}->{$key}->{'direction'}    = $dir;
+	$cache{$xtr_index}->{$key}->{'ts_of_bidir'}  = 0;
+	$cache{$xtr_index}->{$key}->{'uni_dir_pkts'} = 1;
+	$cache{$xtr_index}->{$key}->{'uni_dir_byte'} = $len;
+	$cache{$xtr_index}->{$key}->{'flows'}        = ();
+	$cache{$xtr_index}->{$key}->{'ttl_end'}      = $timestamp + $::TTL;
+	$cache{$xtr_index}->{$key}->{'num_renew'}    = 0;
 }
 
 sub matchProtocol
@@ -783,44 +787,44 @@ sub matchProtocol
 	{
 		if ($tran eq "tcp")
 		{
-			%output->{$xtr_index}->{'http_pkts'}++ if ($port == 80);
-			%output->{$xtr_index}->{'nntp_pkts'}++ if ($port == 119);
-			%output->{$xtr_index}->{'edtcp_pkts'}++ if ($port == 4661 || $port == 4662);
-			%output->{$xtr_index}->{'torrent_pkts'}++ if ($port == 6881);
-			%output->{$xtr_index}->{'ftp_pkts'}++ if ($port == 20 || $port == 21);
-			%output->{$xtr_index}->{'smtp_pkts'}++ if ($port == 25);
-			%output->{$xtr_index}->{'known_tcp_pkts'}++ if ($port <= 1024);
-			%output->{$xtr_index}->{'un_tcp_pkts'}++ if ($port > 1024);
+			$output{$xtr_index}->{'http_pkts'}++ if ($port == 80);
+			$output{$xtr_index}->{'nntp_pkts'}++ if ($port == 119);
+			$output{$xtr_index}->{'edtcp_pkts'}++ if ($port == 4661 || $port == 4662);
+			$output{$xtr_index}->{'torrent_pkts'}++ if ($port == 6881);
+			$output{$xtr_index}->{'ftp_pkts'}++ if ($port == 20 || $port == 21);
+			$output{$xtr_index}->{'smtp_pkts'}++ if ($port == 25);
+			$output{$xtr_index}->{'known_tcp_pkts'}++ if ($port <= 1024);
+			$output{$xtr_index}->{'un_tcp_pkts'}++ if ($port > 1024);
 		}
 		elsif ($tran eq "udp")
 		{
-			%output->{$xtr_index}->{'dns_pkts'}++ if ($port == 53);
-			%output->{$xtr_index}->{'ntp_pkts'}++ if ($port == 123);
-			%output->{$xtr_index}->{'edudp_pkts'}++ if ($port == 4665);
-			%output->{$xtr_index}->{'known_udp_pkts'}++ if ($port <= 1024);
-			%output->{$xtr_index}->{'un_udp_pkts'}++ if ($port > 1024);
+			$output{$xtr_index}->{'dns_pkts'}++ if ($port == 53);
+			$output{$xtr_index}->{'ntp_pkts'}++ if ($port == 123);
+			$output{$xtr_index}->{'edudp_pkts'}++ if ($port == 4665);
+			$output{$xtr_index}->{'known_udp_pkts'}++ if ($port <= 1024);
+			$output{$xtr_index}->{'un_udp_pkts'}++ if ($port > 1024);
 		}
 	}
 	elsif ($op eq MISS)
 	{
 		if ($tran eq "tcp")
 		{
-			%output->{$xtr_index}->{'http_miss'}++ if ($port == 80);
-			%output->{$xtr_index}->{'nntp_miss'}++ if ($port == 119);
-			%output->{$xtr_index}->{'edtcp_miss'}++ if ($port == 4661 || $port == 4662);
-			%output->{$xtr_index}->{'torrent_miss'}++ if ($port == 6881);
-			%output->{$xtr_index}->{'ftp_miss'}++ if ($port == 20 || $port == 21);
-			%output->{$xtr_index}->{'smtp_miss'}++ if ($port == 25);
-			%output->{$xtr_index}->{'known_tcp_miss'}++ if ($port <= 1024);
-			%output->{$xtr_index}->{'un_tcp_miss'}++ if ($port > 1024);
+			$output{$xtr_index}->{'http_miss'}++ if ($port == 80);
+			$output{$xtr_index}->{'nntp_miss'}++ if ($port == 119);
+			$output{$xtr_index}->{'edtcp_miss'}++ if ($port == 4661 || $port == 4662);
+			$output{$xtr_index}->{'torrent_miss'}++ if ($port == 6881);
+			$output{$xtr_index}->{'ftp_miss'}++ if ($port == 20 || $port == 21);
+			$output{$xtr_index}->{'smtp_miss'}++ if ($port == 25);
+			$output{$xtr_index}->{'known_tcp_miss'}++ if ($port <= 1024);
+			$output{$xtr_index}->{'un_tcp_miss'}++ if ($port > 1024);
 		}
 		elsif ($tran eq "udp")
 		{
-			%output->{$xtr_index}->{'dns_miss'}++ if ($port == 53);
-			%output->{$xtr_index}->{'ntp_miss'}++ if ($port == 123);
-			%output->{$xtr_index}->{'edudp_miss'}++ if ($port == 4665);
-			%output->{$xtr_index}->{'known_udp_miss'}++ if ($port <= 1024);
-			%output->{$xtr_index}->{'un_udp_miss'}++ if ($port > 1024);
+			$output{$xtr_index}->{'dns_miss'}++ if ($port == 53);
+			$output{$xtr_index}->{'ntp_miss'}++ if ($port == 123);
+			$output{$xtr_index}->{'edudp_miss'}++ if ($port == 4665);
+			$output{$xtr_index}->{'known_udp_miss'}++ if ($port <= 1024);
+			$output{$xtr_index}->{'un_udp_miss'}++ if ($port > 1024);
 		}
 	}
 }
@@ -831,60 +835,60 @@ sub initOutput
 	my $slicestart = shift or die "Parameter is missing: initOutput->\$slicestart\n";
 	my $sliceend = shift or die "Parameter is missing: initOutput->\$sliceend\n";
 
-	%output->{$xtr_index}->{'slicestart'} = $slicestart; 
-	%output->{$xtr_index}->{'sliceend'} = $sliceend;
-	%output->{$xtr_index}->{'entries'} = 0; 
-	%output->{$xtr_index}->{'timeouts'} = 0;
-	%output->{$xtr_index}->{'miss'} = 0; 
-	%output->{$xtr_index}->{'inmiss'} = 0;
-	%output->{$xtr_index}->{'outmiss'} = 0;
-	%output->{$xtr_index}->{'flows_total'} = 0;
-	%output->{$xtr_index}->{'flows_tcp_in'} = 0;
-	%output->{$xtr_index}->{'flows_tcp_out'} = 0;
-	%output->{$xtr_index}->{'flows_udp_in'} = 0;
-	%output->{$xtr_index}->{'flows_udp_out'} = 0;
-	%output->{$xtr_index}->{'flows_other_in'} = 0;
-	%output->{$xtr_index}->{'flows_other_out'} = 0;
-	%output->{$xtr_index}->{'hit'} = 0;
-	%output->{$xtr_index}->{'pkts'} = 0;
-	%output->{$xtr_index}->{'inpkts'} = 0;
-	%output->{$xtr_index}->{'outpkts'} = 0; 
-	%output->{$xtr_index}->{'inhit'} = 0;
-   	%output->{$xtr_index}->{'outhit'} = 0;
-	%output->{$xtr_index}->{'bytes'} = 0;
-	%output->{$xtr_index}->{'inbytes'} = 0;
-	%output->{$xtr_index}->{'outbytes'} = 0;
-	%output->{$xtr_index}->{'inpfx'} = 0;
-	%output->{$xtr_index}->{'outpfx'} = 0;
-	%output->{$xtr_index}->{'unipfx'} = 0;
-	%output->{$xtr_index}->{'intpfx'} = 0;
-	%output->{$xtr_index}->{'http_pkts'} = 0;
-	%output->{$xtr_index}->{'nntp_pkts'} = 0;
-	%output->{$xtr_index}->{'edtcp_pkts'} = 0;
-	%output->{$xtr_index}->{'edudp_pkts'} = 0;
-	%output->{$xtr_index}->{'torrent_pkts'} = 0;
-	%output->{$xtr_index}->{'ftp_pkts'} = 0;
-	%output->{$xtr_index}->{'smtp_pkts'} = 0;
-	%output->{$xtr_index}->{'known_tcp_pkts'} = 0;
-	%output->{$xtr_index}->{'un_tcp_pkts'} = 0;
-	%output->{$xtr_index}->{'dns_pkts'} = 0;
-	%output->{$xtr_index}->{'ntp_pkts'} = 0;
-	%output->{$xtr_index}->{'known_udp_pkts'} = 0;
-	%output->{$xtr_index}->{'un_udp_pkts'} = 0;
-	%output->{$xtr_index}->{'http_miss'} = 0;
-	%output->{$xtr_index}->{'nntp_miss'} = 0;
-	%output->{$xtr_index}->{'edtcp_miss'} = 0;
-	%output->{$xtr_index}->{'edudp_miss'} = 0;
-	%output->{$xtr_index}->{'torrent_miss'} = 0;
-	%output->{$xtr_index}->{'ftp_miss'} = 0;
-	%output->{$xtr_index}->{'smtp_miss'} = 0;
-	%output->{$xtr_index}->{'known_tcp_miss'} = 0;
-	%output->{$xtr_index}->{'un_tcp_miss'} = 0;
-	%output->{$xtr_index}->{'dns_miss'} = 0;
-	%output->{$xtr_index}->{'ntp_miss'} = 0;
-	%output->{$xtr_index}->{'known_udp_miss'} = 0;
-	%output->{$xtr_index}->{'un_udp_miss'} = 0;
-	%output->{$xtr_index}->{'num_renewed_caches'} = 0;
+	$output{$xtr_index}->{'slicestart'} = $slicestart; 
+	$output{$xtr_index}->{'sliceend'} = $sliceend;
+	$output{$xtr_index}->{'entries'} = 0; 
+	$output{$xtr_index}->{'timeouts'} = 0;
+	$output{$xtr_index}->{'miss'} = 0; 
+	$output{$xtr_index}->{'inmiss'} = 0;
+	$output{$xtr_index}->{'outmiss'} = 0;
+	$output{$xtr_index}->{'flows_total'} = 0;
+	$output{$xtr_index}->{'flows_tcp_in'} = 0;
+	$output{$xtr_index}->{'flows_tcp_out'} = 0;
+	$output{$xtr_index}->{'flows_udp_in'} = 0;
+	$output{$xtr_index}->{'flows_udp_out'} = 0;
+	$output{$xtr_index}->{'flows_other_in'} = 0;
+	$output{$xtr_index}->{'flows_other_out'} = 0;
+	$output{$xtr_index}->{'hit'} = 0;
+	$output{$xtr_index}->{'pkts'} = 0;
+	$output{$xtr_index}->{'inpkts'} = 0;
+	$output{$xtr_index}->{'outpkts'} = 0; 
+	$output{$xtr_index}->{'inhit'} = 0;
+   	$output{$xtr_index}->{'outhit'} = 0;
+	$output{$xtr_index}->{'bytes'} = 0;
+	$output{$xtr_index}->{'inbytes'} = 0;
+	$output{$xtr_index}->{'outbytes'} = 0;
+	$output{$xtr_index}->{'inpfx'} = 0;
+	$output{$xtr_index}->{'outpfx'} = 0;
+	$output{$xtr_index}->{'unipfx'} = 0;
+	$output{$xtr_index}->{'intpfx'} = 0;
+	$output{$xtr_index}->{'http_pkts'} = 0;
+	$output{$xtr_index}->{'nntp_pkts'} = 0;
+	$output{$xtr_index}->{'edtcp_pkts'} = 0;
+	$output{$xtr_index}->{'edudp_pkts'} = 0;
+	$output{$xtr_index}->{'torrent_pkts'} = 0;
+	$output{$xtr_index}->{'ftp_pkts'} = 0;
+	$output{$xtr_index}->{'smtp_pkts'} = 0;
+	$output{$xtr_index}->{'known_tcp_pkts'} = 0;
+	$output{$xtr_index}->{'un_tcp_pkts'} = 0;
+	$output{$xtr_index}->{'dns_pkts'} = 0;
+	$output{$xtr_index}->{'ntp_pkts'} = 0;
+	$output{$xtr_index}->{'known_udp_pkts'} = 0;
+	$output{$xtr_index}->{'un_udp_pkts'} = 0;
+	$output{$xtr_index}->{'http_miss'} = 0;
+	$output{$xtr_index}->{'nntp_miss'} = 0;
+	$output{$xtr_index}->{'edtcp_miss'} = 0;
+	$output{$xtr_index}->{'edudp_miss'} = 0;
+	$output{$xtr_index}->{'torrent_miss'} = 0;
+	$output{$xtr_index}->{'ftp_miss'} = 0;
+	$output{$xtr_index}->{'smtp_miss'} = 0;
+	$output{$xtr_index}->{'known_tcp_miss'} = 0;
+	$output{$xtr_index}->{'un_tcp_miss'} = 0;
+	$output{$xtr_index}->{'dns_miss'} = 0;
+	$output{$xtr_index}->{'ntp_miss'} = 0;
+	$output{$xtr_index}->{'known_udp_miss'} = 0;
+	$output{$xtr_index}->{'un_udp_miss'} = 0;
+	$output{$xtr_index}->{'num_renewed_caches'} = 0;
 }
 
 sub checkExpiredCache
@@ -893,17 +897,17 @@ sub checkExpiredCache
 	my $key = shift or die "Parameter is missing: checkExpiredCache->\$key\n";
 	my $timeCurrPkt = shift or die "Parameter is missing: checkExpiredCache->\$timeCurrPkt\n";
 
-	die "Given key doesn't exist\n" unless exists %cache->{$xtr_index}->{$key};
+	die "Given key doesn't exist\n" unless exists $cache{$xtr_index}->{$key};
 
-	if ($timeCurrPkt >= %cache->{$xtr_index}->{$key}->{'ttl_end'})
+	if ($timeCurrPkt >= $cache{$xtr_index}->{$key}->{'ttl_end'})
 	{ 
-		if (%cache->{$xtr_index}->{$key}->{'ttl_end'} - %cache->{$xtr_index}->{$key}->{'last_update'} > $::REFRESHTIME)
+		if ($cache{$xtr_index}->{$key}->{'ttl_end'} - $cache{$xtr_index}->{$key}->{'last_update'} > $::REFRESHTIME)
 		{
 		
 			# -------------------------------------------------
 			#  Update output table
 			# -------------------------------------------------
-			%output->{$xtr_index}->{'timeouts'}++;
+			$output{$xtr_index}->{'timeouts'}++;
 
 			if ($::SHARE eq "no")
 			{
@@ -936,20 +940,20 @@ sub checkExpiredCache
 				# ---------------------------------------------
 				#  Renew the ttl-end
 				# ---------------------------------------------
-				%cache->{$xtr_index}->{$key}->{'ttl_end'} = %cache->{$xtr_index}->{$key}->{'ttl_end'} + $::TTL;
+				$cache{$xtr_index}->{$key}->{'ttl_end'} = $cache{$xtr_index}->{$key}->{'ttl_end'} + $::TTL;
 
 				# ---------------------------------------------
 				#  Update the number of renewals of the
 				#  cache entry
 				# ---------------------------------------------
-				%cache->{$xtr_index}->{$key}->{'num_renew'} = %cache->{$xtr_index}->{$key}->{'num_renew'} + 1;
+				$cache{$xtr_index}->{$key}->{'num_renew'} = $cache{$xtr_index}->{$key}->{'num_renew'} + 1;
 
 
 				# ---------------------------------------------
 				#  Increase the number of renewed caches 
 				#  within this time slot
 				# ---------------------------------------------
-				%output->{$xtr_index}->{'num_renewed_caches'}++;
+				$output{$xtr_index}->{'num_renewed_caches'}++;
 			}
 			else
 			{
@@ -957,7 +961,7 @@ sub checkExpiredCache
 				{
 					my $tmp_xtr_index = $xtr_indexes[$i];
 
-					unless (exists %cache->{$tmp_xtr_index}->{$key})
+					unless (exists $cache{$tmp_xtr_index}->{$key})
 					{
 						# -----------------------------------------
 						# Create a new entry if the cache entry is 
@@ -970,19 +974,19 @@ sub checkExpiredCache
 					# -----------------------------------------
 					#  Renew the ttl-end (for all xTRs)
 					# -----------------------------------------
-					%cache->{$tmp_xtr_index}->{$key}->{'ttl_end'} = %cache->{$xtr_index}->{$key}->{'ttl_end'} + $::TTL;
+					$cache{$tmp_xtr_index}->{$key}->{'ttl_end'} = $cache{$xtr_index}->{$key}->{'ttl_end'} + $::TTL;
 
 					# -----------------------------------------
 					#  Update the number of renewals of the
 					#  cache entry (for all xTRs)
 					# -----------------------------------------
-					%cache->{$tmp_xtr_index}->{$key}->{'num_renew'} = %cache->{$xtr_index}->{$key}->{'num_renew'} + 1;
+					$cache{$tmp_xtr_index}->{$key}->{'num_renew'} = $cache{$xtr_index}->{$key}->{'num_renew'} + 1;
 
 					# -----------------------------------------
 					#  Increase the number of renewed caches 
 					#  within this time slot
 					# -----------------------------------------
-					%output->{$tmp_xtr_index}->{'num_renewed_caches'}++;
+					$output{$tmp_xtr_index}->{'num_renewed_caches'}++;
 				}
 			}
 		}
@@ -995,7 +999,7 @@ sub checkExpiredCaches
 {
 	my $xtr_index = shift or die "Parameter is missing: checkExpiredCaches->\$xtr_index\n";
 	my $timeCurrPkt = shift or die "Parameter is missing: checkExpiredCaches->\$timeCurrPkt\n";
-	my $tmpCache = %cache->{$xtr_index};
+	my $tmpCache = $cache{$xtr_index};
 
 	while (my($key, $val) = each(%$tmpCache))
 	{
@@ -1006,7 +1010,7 @@ sub checkExpiredCaches
 sub countCacheEntries
 {
 	my $xtr_index = shift or die "Parameter is missing: countCacheEntries->\$xtr_index\n";
-	my $tmpCache = %cache->{$xtr_index};
+	my $tmpCache = $cache{$xtr_index};
 	return scalar keys %$tmpCache;
 }
 
@@ -1076,60 +1080,60 @@ sub writeout
 	my $xtr_index = shift or die "Parameter is missing: writeout->\$xtr_index\n";
 	my $file = $FD_LOGFILE . $xtr_index;
 	
-	print $file %output->{$xtr_index}->{'slicestart'} .   # 1
-	" " . %output->{$xtr_index}->{'sliceend'} .           # 2
-	" " . %output->{$xtr_index}->{'entries'} .            # 3
-	" " . %output->{$xtr_index}->{'timeouts'} .           # 4
-	" " . %output->{$xtr_index}->{'pkts'} .               # 5
-	" " . %output->{$xtr_index}->{'inpkts'} .             # 6
-	" " . %output->{$xtr_index}->{'outpkts'} .            # 7
-	" " . %output->{$xtr_index}->{'hit'} .                # 8
-	" " . %output->{$xtr_index}->{'inhit'} .              # 9
-	" " . %output->{$xtr_index}->{'outhit'} .             # 10
-	" " . %output->{$xtr_index}->{'miss'} .               # 11
-	" " . %output->{$xtr_index}->{'inmiss'} .             # 12
-	" " . %output->{$xtr_index}->{'outmiss'} .            # 13
-	" " . %output->{$xtr_index}->{'flows_total'} .        # 14
-	" " . %output->{$xtr_index}->{'flows_tcp_in'} .       # 15
-	" " . %output->{$xtr_index}->{'flows_tcp_out'} .      # 16
-	" " . %output->{$xtr_index}->{'flows_udp_in'} .       # 17
-	" " . %output->{$xtr_index}->{'flows_udp_out'} .      # 18
-	" " . %output->{$xtr_index}->{'flows_other_in'} .     # 19
-	" " . %output->{$xtr_index}->{'flows_other_out'} .    # 20
-	" " . %output->{$xtr_index}->{'bytes'} .              # 21
-	" " . %output->{$xtr_index}->{'inbytes'} .            # 22
-	" " . %output->{$xtr_index}->{'outbytes'} .           # 23
-	" " . %output->{$xtr_index}->{'unipfx'} .             # 24
-	" " . %output->{$xtr_index}->{'inpfx'} .              # 25
-	" " . %output->{$xtr_index}->{'outpfx'} .             # 26
-	" " . %output->{$xtr_index}->{'intpfx'} .             # 27
- 	" " . %output->{$xtr_index}->{'http_pkts'} .          # 28
- 	" " . %output->{$xtr_index}->{'nntp_pkts'} .          # 29
- 	" " . %output->{$xtr_index}->{'edtcp_pkts'} .         # 30
- 	" " . %output->{$xtr_index}->{'torrent_pkts'} .       # 31
- 	" " . %output->{$xtr_index}->{'ftp_pkts'} .           # 32
- 	" " . %output->{$xtr_index}->{'smtp_pkts'} .          # 33
- 	" " . %output->{$xtr_index}->{'dns_pkts'} .           # 34 
- 	" " . %output->{$xtr_index}->{'ntp_pkts'} .           # 35
- 	" " . %output->{$xtr_index}->{'edudp_pkts'} .         # 36
- 	" " . %output->{$xtr_index}->{'known_tcp_pkts'} .     # 37
- 	" " . %output->{$xtr_index}->{'un_tcp_pkts'} .        # 38
- 	" " . %output->{$xtr_index}->{'known_udp_pkts'} .     # 39
- 	" " . %output->{$xtr_index}->{'un_udp_pkts'} .        # 40
- 	" " . %output->{$xtr_index}->{'http_miss'} .          # 41
- 	" " . %output->{$xtr_index}->{'nntp_miss'} .          # 42
- 	" " . %output->{$xtr_index}->{'edtcp_miss'} .         # 43
- 	" " . %output->{$xtr_index}->{'torrent_miss'} .       # 44
- 	" " . %output->{$xtr_index}->{'ftp_miss'} .           # 45
- 	" " . %output->{$xtr_index}->{'smtp_miss'} .          # 46
- 	" " . %output->{$xtr_index}->{'dns_miss'} .           # 47
- 	" " . %output->{$xtr_index}->{'ntp_miss'} .           # 48
- 	" " . %output->{$xtr_index}->{'edudp_miss'} .         # 49
- 	" " . %output->{$xtr_index}->{'known_tcp_miss'} .     # 50
- 	" " . %output->{$xtr_index}->{'un_tcp_miss'} .        # 51
- 	" " . %output->{$xtr_index}->{'known_udp_miss'} .     # 52
- 	" " . %output->{$xtr_index}->{'un_udp_miss'} .        # 53
- 	" " . %output->{$xtr_index}->{'num_renewed_caches'} . # 54
+	print $file $output{$xtr_index}->{'slicestart'} .   # 1
+	" " . $output{$xtr_index}->{'sliceend'} .           # 2
+	" " . $output{$xtr_index}->{'entries'} .            # 3
+	" " . $output{$xtr_index}->{'timeouts'} .           # 4
+	" " . $output{$xtr_index}->{'pkts'} .               # 5
+	" " . $output{$xtr_index}->{'inpkts'} .             # 6
+	" " . $output{$xtr_index}->{'outpkts'} .            # 7
+	" " . $output{$xtr_index}->{'hit'} .                # 8
+	" " . $output{$xtr_index}->{'inhit'} .              # 9
+	" " . $output{$xtr_index}->{'outhit'} .             # 10
+	" " . $output{$xtr_index}->{'miss'} .               # 11
+	" " . $output{$xtr_index}->{'inmiss'} .             # 12
+	" " . $output{$xtr_index}->{'outmiss'} .            # 13
+	" " . $output{$xtr_index}->{'flows_total'} .        # 14
+	" " . $output{$xtr_index}->{'flows_tcp_in'} .       # 15
+	" " . $output{$xtr_index}->{'flows_tcp_out'} .      # 16
+	" " . $output{$xtr_index}->{'flows_udp_in'} .       # 17
+	" " . $output{$xtr_index}->{'flows_udp_out'} .      # 18
+	" " . $output{$xtr_index}->{'flows_other_in'} .     # 19
+	" " . $output{$xtr_index}->{'flows_other_out'} .    # 20
+	" " . $output{$xtr_index}->{'bytes'} .              # 21
+	" " . $output{$xtr_index}->{'inbytes'} .            # 22
+	" " . $output{$xtr_index}->{'outbytes'} .           # 23
+	" " . $output{$xtr_index}->{'unipfx'} .             # 24
+	" " . $output{$xtr_index}->{'inpfx'} .              # 25
+	" " . $output{$xtr_index}->{'outpfx'} .             # 26
+	" " . $output{$xtr_index}->{'intpfx'} .             # 27
+ 	" " . $output{$xtr_index}->{'http_pkts'} .          # 28
+ 	" " . $output{$xtr_index}->{'nntp_pkts'} .          # 29
+ 	" " . $output{$xtr_index}->{'edtcp_pkts'} .         # 30
+ 	" " . $output{$xtr_index}->{'torrent_pkts'} .       # 31
+ 	" " . $output{$xtr_index}->{'ftp_pkts'} .           # 32
+ 	" " . $output{$xtr_index}->{'smtp_pkts'} .          # 33
+ 	" " . $output{$xtr_index}->{'dns_pkts'} .           # 34 
+ 	" " . $output{$xtr_index}->{'ntp_pkts'} .           # 35
+ 	" " . $output{$xtr_index}->{'edudp_pkts'} .         # 36
+ 	" " . $output{$xtr_index}->{'known_tcp_pkts'} .     # 37
+ 	" " . $output{$xtr_index}->{'un_tcp_pkts'} .        # 38
+ 	" " . $output{$xtr_index}->{'known_udp_pkts'} .     # 39
+ 	" " . $output{$xtr_index}->{'un_udp_pkts'} .        # 40
+ 	" " . $output{$xtr_index}->{'http_miss'} .          # 41
+ 	" " . $output{$xtr_index}->{'nntp_miss'} .          # 42
+ 	" " . $output{$xtr_index}->{'edtcp_miss'} .         # 43
+ 	" " . $output{$xtr_index}->{'torrent_miss'} .       # 44
+ 	" " . $output{$xtr_index}->{'ftp_miss'} .           # 45
+ 	" " . $output{$xtr_index}->{'smtp_miss'} .          # 46
+ 	" " . $output{$xtr_index}->{'dns_miss'} .           # 47
+ 	" " . $output{$xtr_index}->{'ntp_miss'} .           # 48
+ 	" " . $output{$xtr_index}->{'edudp_miss'} .         # 49
+ 	" " . $output{$xtr_index}->{'known_tcp_miss'} .     # 50
+ 	" " . $output{$xtr_index}->{'un_tcp_miss'} .        # 51
+ 	" " . $output{$xtr_index}->{'known_udp_miss'} .     # 52
+ 	" " . $output{$xtr_index}->{'un_udp_miss'} .        # 53
+ 	" " . $output{$xtr_index}->{'num_renewed_caches'} . # 54
     "\n";
 }
 
@@ -1141,7 +1145,7 @@ sub userlimit
 
 	return T if $::USERLIMIT == 0;
 
-	if (exists(%userpool->{$src_ip}) || exists(%userpool->{$dst_ip}))
+	if (exists($userpool{$src_ip}) || exists($userpool{$dst_ip}))
 	{
 		return T;
 	}
@@ -1151,11 +1155,11 @@ sub userlimit
 		{
 			if ($dir == IN)
 			{
-				%userpool->{$dst_ip} = T;
+				$userpool{$dst_ip} = T;
 			}
 			elsif ($dir == OUT)
 			{
-				%userpool->{$src_ip} = T;
+				$userpool{$src_ip} = T;
 			}
 
 			return T;
@@ -1172,8 +1176,8 @@ sub getFlowDir
 	my $src_ip = shift or die "Parameter is missing: getFlowDir->\$src_ip\n"; 
 	my $dst_ip = shift or die "Parameter is missing: getFlowDir->\$dst_ip\n";
 
-	my $isdef_src = defined(%patricia_int_prefixes->{$xtr_index}->match_string($src_ip));
-	my $isdef_dst = defined(%patricia_int_prefixes->{$xtr_index}->match_string($dst_ip));
+	my $isdef_src = defined($patricia_int_prefixes{$xtr_index}->match_string($src_ip));
+	my $isdef_dst = defined($patricia_int_prefixes{$xtr_index}->match_string($dst_ip));
 
 	if ($isdef_src && $isdef_dst)
 	{
@@ -1200,11 +1204,11 @@ sub getXTRindex
 
 	for (my $i = 0 ; $i < $num_index ; $i++)
 	{
-		if (defined(%patricia_int_prefixes->{$xtr_indexes[$i]}->match_string($src_ip)))
+		if (defined($patricia_int_prefixes{$xtr_indexes[$i]}->match_string($src_ip)))
 		{
 			return $xtr_indexes[$i];
 		}
-		elsif (defined(%patricia_int_prefixes->{$xtr_indexes[$i]}->match_string($dst_ip)))
+		elsif (defined($patricia_int_prefixes{$xtr_indexes[$i]}->match_string($dst_ip)))
 		{
 			return $xtr_indexes[$i];
 		}
@@ -1238,25 +1242,25 @@ sub deleteEntry
 	my $file = $FD_CACHELOGFILE . $xtr_index;
 
 	print $file $key .
-	" " . %cache->{$xtr_index}->{$key}->{'inserted'} .
+	" " . $cache{$xtr_index}->{$key}->{'inserted'} .
 	" " . $currentPktTime .
-	" " . ($currentPktTime - %cache->{$xtr_index}->{$key}->{'inserted'}) .
-	" " . ((%cache->{$xtr_index}->{$key}->{'first_dir'} == IN) ? "in" : "out") .
-	" " . ((%cache->{$xtr_index}->{$key}->{'direction'} == BI) ? "bi" : (%cache->{$xtr_index}->{$key}->{'direction'} == IN ? "in" : "out")) .
-	" " . %cache->{$xtr_index}->{$key}->{'ts_of_bidir'} .
-	" " . ((%cache->{$xtr_index}->{$key}->{'direction'} == BI) ? %cache->{$xtr_index}->{$key}->{'uni_dir_pkts'} : %cache->{$xtr_index}->{$key}->{'packets'}) .
-	" " . ((%cache->{$xtr_index}->{$key}->{'direction'} == BI) ? %cache->{$xtr_index}->{$key}->{'uni_dir_byte'} : %cache->{$xtr_index}->{$key}->{'bytes'}) .
-	" " . %cache->{$xtr_index}->{$key}->{'packets'} .
-	" " . %cache->{$xtr_index}->{$key}->{'in-packets'} .
-	" " . %cache->{$xtr_index}->{$key}->{'out-packets'} .
-	" " . %cache->{$xtr_index}->{$key}->{'bytes'} .
-	" " . %cache->{$xtr_index}->{$key}->{'in-bytes'} .
-	" " . %cache->{$xtr_index}->{$key}->{'out-bytes'} .
+	" " . ($currentPktTime - $cache{$xtr_index}->{$key}->{'inserted'}) .
+	" " . (($cache{$xtr_index}->{$key}->{'first_dir'} == IN) ? "in" : "out") .
+	" " . (($cache{$xtr_index}->{$key}->{'direction'} == BI) ? "bi" : ($cache{$xtr_index}->{$key}->{'direction'} == IN ? "in" : "out")) .
+	" " . $cache{$xtr_index}->{$key}->{'ts_of_bidir'} .
+	" " . (($cache{$xtr_index}->{$key}->{'direction'} == BI) ? $cache{$xtr_index}->{$key}->{'uni_dir_pkts'} : $cache{$xtr_index}->{$key}->{'packets'}) .
+	" " . (($cache{$xtr_index}->{$key}->{'direction'} == BI) ? $cache{$xtr_index}->{$key}->{'uni_dir_byte'} : $cache{$xtr_index}->{$key}->{'bytes'}) .
+	" " . $cache{$xtr_index}->{$key}->{'packets'} .
+	" " . $cache{$xtr_index}->{$key}->{'in-packets'} .
+	" " . $cache{$xtr_index}->{$key}->{'out-packets'} .
+	" " . $cache{$xtr_index}->{$key}->{'bytes'} .
+	" " . $cache{$xtr_index}->{$key}->{'in-bytes'} .
+	" " . $cache{$xtr_index}->{$key}->{'out-bytes'} .
 	" " . countFlowsPerCache($xtr_index, $key) . 
-	" " . %cache->{$xtr_index}->{$key}->{'num_renew'} . 
+	" " . $cache{$xtr_index}->{$key}->{'num_renew'} . 
 	"\n";
 
-	delete %cache->{$xtr_index}->{$key};
+	delete $cache{$xtr_index}->{$key};
 }
 
 sub finishTimeslot
@@ -1264,30 +1268,30 @@ sub finishTimeslot
 	my $xtr_index = shift or die "Parameter is missing: finishTimeslot->\$xtr_index\n";
 	my $timestamp = shift or die "Parameter is missing: finishTimeslot->\$timestamp\n";
 
-	if (%output->{$xtr_index}->{'sliceend'} > 0)
+	if ($output{$xtr_index}->{'sliceend'} > 0)
 	{
-		checkExpiredCaches($xtr_index, %output->{$xtr_index}->{'sliceend'});   # check timeouts, 
-		%output->{$xtr_index}->{'entries'} = countCacheEntries($xtr_index);
+		checkExpiredCaches($xtr_index, $output{$xtr_index}->{'sliceend'});   # check timeouts, 
+		$output{$xtr_index}->{'entries'} = countCacheEntries($xtr_index);
 		
-		(	%output->{$xtr_index}->{'flows_total'}, 
-			%output->{$xtr_index}->{'flows_tcp_in'}, 
-			%output->{$xtr_index}->{'flows_tcp_out'}, 
-			%output->{$xtr_index}->{'flows_udp_in'}, 
-			%output->{$xtr_index}->{'flows_udp_out'}, 
-			%output->{$xtr_index}->{'flows_other_in'},
-			%output->{$xtr_index}->{'flows_other_out'}
+		(	$output{$xtr_index}->{'flows_total'}, 
+			$output{$xtr_index}->{'flows_tcp_in'}, 
+			$output{$xtr_index}->{'flows_tcp_out'}, 
+			$output{$xtr_index}->{'flows_udp_in'}, 
+			$output{$xtr_index}->{'flows_udp_out'}, 
+			$output{$xtr_index}->{'flows_other_in'},
+			$output{$xtr_index}->{'flows_other_out'}
 		) = countFlows($xtr_index);
 
-		(	%output->{$xtr_index}->{'unipfx'},
-			%output->{$xtr_index}->{'inpfx'},
-			%output->{$xtr_index}->{'outpfx'},
-			%output->{$xtr_index}->{'intpfx'}
+		(	$output{$xtr_index}->{'unipfx'},
+			$output{$xtr_index}->{'inpfx'},
+			$output{$xtr_index}->{'outpfx'},
+			$output{$xtr_index}->{'intpfx'}
 		) = countPrefixes($xtr_index);
 
 		writeout($xtr_index);
 	}
 
-	initOutput($xtr_index, %output->{$xtr_index}->{'sliceend'}, %output->{$xtr_index}->{'sliceend'} + $::GRANULARITY);
+	initOutput($xtr_index, $output{$xtr_index}->{'sliceend'}, $output{$xtr_index}->{'sliceend'} + $::GRANULARITY);
 	clearFlows($xtr_index);
 	clearPrefixes($xtr_index);
 }
@@ -1336,13 +1340,13 @@ sub getPacketInfoFromPcap
 	{
 		my $ip = NetPacket::IP->decode($ether_obj->{'data'});
 
-		%pkt_info->{'timestamp'} = %pcapHeader->{'tv_sec'};
-		%pkt_info->{'src_port'} = 0;
-		%pkt_info->{'dst_port'} = 0;
-		%pkt_info->{'proto'} = $ip->{'proto'};
-		%pkt_info->{'src_ip'} = $ip->{'src_ip'};
-		%pkt_info->{'dst_ip'} = $ip->{'dest_ip'};
-		%pkt_info->{'len'} = $ip->{'len'};
+		$pkt_info{'timestamp'} = $pcapHeader{'tv_sec'};
+		$pkt_info{'src_port'} = 0;
+		$pkt_info{'dst_port'} = 0;
+		$pkt_info{'proto'} = $ip->{'proto'};
+		$pkt_info{'src_ip'} = $ip->{'src_ip'};
+		$pkt_info{'dst_ip'} = $ip->{'dest_ip'};
+		$pkt_info{'len'} = $ip->{'len'};
 		# --------------------------------------------------
 		# Available infomation retrived from NetPacket::IP->decode($eth_pkt)
 		# --------------------------------------------------
@@ -1389,9 +1393,9 @@ sub getPacketInfoFromPcap
 			# data:      The encapsulated data (payload) for this packet.
 			# ---------------------------------------------
 		
-			%pkt_info->{'proto'} = "tcp";
-			%pkt_info->{'src_port'} = $tcp->{'src_port'};
-			%pkt_info->{'dst_port'} = $tcp->{'dest_port'};
+			$pkt_info{'proto'} = "tcp";
+			$pkt_info{'src_port'} = $tcp->{'src_port'};
+			$pkt_info{'dst_port'} = $tcp->{'dest_port'};
 		}
 		elsif ($ip->{'proto'} == NetPacket::IP::IP_PROTO_UDP)
 		{
@@ -1410,9 +1414,9 @@ sub getPacketInfoFromPcap
 			#            this packet.
 			# ---------------------------------------------
 
-			%pkt_info->{'proto'} = "udp";
-			%pkt_info->{'src_port'} = $udp->{'src_port'};
-			%pkt_info->{'dst_port'} = $udp->{'dest_port'};
+			$pkt_info{'proto'} = "udp";
+			$pkt_info{'src_port'} = $udp->{'src_port'};
+			$pkt_info{'dst_port'} = $udp->{'dest_port'};
 		}
 
    		# Decode contents of TCP/IP packet contained within 
@@ -1433,13 +1437,13 @@ sub getPacketInfoFromAscii
 	return F unless defined $line; 
 	my @cols = split / /, $line; 
 
-	%pkt_info->{'timestamp'} = $cols[0];
-	%pkt_info->{'src_ip'} = $cols[1];
-	%pkt_info->{'dst_ip'} = $cols[2];
-	%pkt_info->{'src_port'} = $cols[3];
-	%pkt_info->{'dst_port'} = $cols[4];
-	%pkt_info->{'proto'} = $cols[5];
-	%pkt_info->{'len'} = $cols[6];
+	$pkt_info{'timestamp'} = $cols[0];
+	$pkt_info{'src_ip'} = $cols[1];
+	$pkt_info{'dst_ip'} = $cols[2];
+	$pkt_info{'src_port'} = $cols[3];
+	$pkt_info{'dst_port'} = $cols[4];
+	$pkt_info{'proto'} = $cols[5];
+	$pkt_info{'len'} = $cols[6];
 
 	return $line, %pkt_info;
 }
@@ -1477,7 +1481,7 @@ sub processFlow
 	my $protocol = shift or 0; #die "Parameter is missing: processFlow->\$protocol\n";
 	my $flow = $srcip . "-" . $dstip . "-" . $srcport . "-" . $dstport . "-" . $protocol;
 
-	createFlow($xtr_index, $flow) unless (defined %flows->{$xtr_index}->{$flow});
+	createFlow($xtr_index, $flow) unless (defined $flows{$xtr_index}->{$flow});
 
 	return $flow;
 }
@@ -1491,12 +1495,12 @@ sub createFlow
 
 	if ($flowDir != NONE)
 	{
-		%flows->{$xtr_index}->{$flow}->{'srcip'} = $srcip;
-		%flows->{$xtr_index}->{$flow}->{'dstip'} = $dstip;
-		%flows->{$xtr_index}->{$flow}->{'srcport'} = $srcport;
-		%flows->{$xtr_index}->{$flow}->{'dstport'} = $dstport;
-		%flows->{$xtr_index}->{$flow}->{'protocol'} = $protocol;
-		%flows->{$xtr_index}->{$flow}->{'dir'} = $flowDir;
+		$flows{$xtr_index}->{$flow}->{'srcip'} = $srcip;
+		$flows{$xtr_index}->{$flow}->{'dstip'} = $dstip;
+		$flows{$xtr_index}->{$flow}->{'srcport'} = $srcport;
+		$flows{$xtr_index}->{$flow}->{'dstport'} = $dstport;
+		$flows{$xtr_index}->{$flow}->{'protocol'} = $protocol;
+		$flows{$xtr_index}->{$flow}->{'dir'} = $flowDir;
 	}
 }
 
@@ -1506,7 +1510,7 @@ sub processPrefix
 	my $prefix = shift or die "Parameter is missing: processPrefix->\$prefix\n";
 	my $dir = shift or die "Parameter is missing: processPrefix->\$dir\n";
 
-	if (defined %prefixes->{$xtr_index}->{$prefix})
+	if (defined $prefixes{$xtr_index}->{$prefix})
 	{
 		updatePrefix($xtr_index, $prefix, $dir);
 	}
@@ -1522,7 +1526,7 @@ sub createPrefix
 	my $prefix = shift or die "Parameter is missing: createPrefix->\$prefix\n";
 	my $dir = shift or die "Parameter is missing: createPrefix->\$dir\n";
 
-	%prefixes->{$xtr_index}->{$prefix} = $dir;
+	$prefixes{$xtr_index}->{$prefix} = $dir;
 }
 
 sub updatePrefix
@@ -1531,16 +1535,16 @@ sub updatePrefix
 	my $prefix = shift or die "Parameter is missing: updatePrefix->\$prefix\n";
 	my $dir = shift or die "Parameter is missing: updatePrefix->\$dir\n";
 
-	if (%prefixes->{$prefix} != BI && %prefixes->{$prefix} != $dir)
+	if ($prefixes{$prefix} != BI && $prefixes{$prefix} != $dir)
 	{
-		%prefixes->{$prefix} = BI;
+		$prefixes{$prefix} = BI;
 	}
 }
 
 sub countFlows
 {
 	my $xtr_index = shift or die "Parameter is missing: countFlows->\$xtr_index\n";
-	my $tmpFlows = %flows->{$xtr_index};
+	my $tmpFlows = $flows{$xtr_index};
 	my $flowsTotal = scalar keys %$tmpFlows;
 	my $flowsTCPIn = 0;
 	my $flowsTCPOut = 0;
@@ -1551,9 +1555,9 @@ sub countFlows
 	
 	while (my($key, %value) = each(%$tmpFlows))
 	{
-		if (%flows->{$xtr_index}->{$key}->{'protocol'} eq "tcp")
+		if ($flows{$xtr_index}->{$key}->{'protocol'} eq "tcp")
 		{
-			if (%flows->{$xtr_index}->{$key}->{'dir'} == IN)
+			if ($flows{$xtr_index}->{$key}->{'dir'} == IN)
 			{
 				$flowsTCPIn++;
 			}
@@ -1562,9 +1566,9 @@ sub countFlows
 				$flowsTCPOut++;
 			}
 		}	
-		elsif (%flows->{$xtr_index}->{$key}->{'protocol'} eq "udp")
+		elsif ($flows{$xtr_index}->{$key}->{'protocol'} eq "udp")
 		{
-			if (%flows->{$xtr_index}->{$key}->{'dir'} == IN)
+			if ($flows{$xtr_index}->{$key}->{'dir'} == IN)
 			{
 				$flowsUDPIn++;
 			}
@@ -1575,7 +1579,7 @@ sub countFlows
 		}
 		else
 		{
-			if (%flows->{$xtr_index}->{$key}->{'dir'} == IN)
+			if ($flows{$xtr_index}->{$key}->{'dir'} == IN)
 			{
 				$flowsOtherIn++;
 			}
@@ -1586,14 +1590,13 @@ sub countFlows
 		}
 	}
 
-	return ($flowsTotal, $flowsTCPIn, $flowsTCPOut, $flowsUDPIn, 
-	        $flowsUDPOut, $flowsOtherIn, $flowsOtherOut);
+	return ($flowsTotal, $flowsTCPIn, $flowsTCPOut, $flowsUDPIn, $flowsUDPOut, $flowsOtherIn, $flowsOtherOut);
 }
 
 sub countPrefixes
 {
 	my $xtr_index = shift or die "Parameter is missing: countPrefixes->\$xtr_index\n";
-	my $tmpPrefixes = %prefixes->{$xtr_index};
+	my $tmpPrefixes = $prefixes{$xtr_index};
 	my $prefixesTotal = scalar keys %$tmpPrefixes;
 	my $prefixesIn = 0;
 	my $prefixesOut = 0;
@@ -1601,15 +1604,15 @@ sub countPrefixes
 
 	while (my($key, $value) = each(%$tmpPrefixes))
 	{
-		if (%prefixes->{$xtr_index}->{$key} == BI)
+		if ($prefixes{$xtr_index}->{$key} == BI)
 		{
 			$prefixesIntersect++;
 		}
-		elsif (%prefixes->{$xtr_index}->{$key} == IN)
+		elsif ($prefixes{$xtr_index}->{$key} == IN)
 		{
 			$prefixesIn++;
 		}
-		elsif (%prefixes->{$xtr_index}->{$key} == OUT)
+		elsif ($prefixes{$xtr_index}->{$key} == OUT)
 		{
 			$prefixesOut++;
 		}
@@ -1621,22 +1624,22 @@ sub countPrefixes
 sub clearFlows
 {
 	my $xtr_index = shift or die "Parameter is missing: clearFlows->\$xtr_index\n";
-	my $tmpFlows = %flows->{$xtr_index};
+	my $tmpFlows = $flows{$xtr_index};
 
 	while (my($key, $value) = each(%$tmpFlows))
 	{
-		delete %flows->{$xtr_index}->{$key};
+		delete $flows{$xtr_index}->{$key};
 	}
 }
 
 sub clearPrefixes
 {
 	my $xtr_index = shift or die "Parameter is missing: clearprefixes->\$xtr_index\n";
-	my $tmpPrefixes = %prefixes->{$xtr_index};
+	my $tmpPrefixes = $prefixes{$xtr_index};
 
 	while (my($key, $value) = each(%$tmpPrefixes))
 	{
-		delete %prefixes->{$xtr_index}->{$key};
+		delete $prefixes{$xtr_index}->{$key};
 	}
 }
 
@@ -1647,7 +1650,7 @@ sub createFlowForCache
 	my $ip1 = shift or die "Parameter is missing: createFlowForCache->\$ip1\n";
 	my $ip2 = shift or die "Parameter is missing: createFlowForCache->\$ip2\n";
 	
-	%cache->{$xtr_index}->{$prefix}->{'flows'}->{$ip1 . "-" . $ip2} = 1;
+	$cache{$xtr_index}->{$prefix}->{'flows'}->{$ip1 . "-" . $ip2} = 1;
 }
 
 sub updateFlowForCache
@@ -1656,7 +1659,7 @@ sub updateFlowForCache
 	my $prefix = shift or die "Parameter is missing: createFlowForCache->\$prefix\n";
 	my $flow = shift or die "Parameter is missing: createFlowForCache->\$flow\n";
 	
-	%cache->{$xtr_index}->{$prefix}->{'flows'}->{$flow}++;
+	$cache{$xtr_index}->{$prefix}->{'flows'}->{$flow}++;
 }
 
 sub isFlowIn
@@ -1666,11 +1669,11 @@ sub isFlowIn
 	my $ip1 = shift or die "Parameter is missing: isFlowIn->\$ip1\n";
 	my $ip2 = shift or die "Parameter is missing: isFlowIn->\$ip2\n";
 	
-	if (defined(%cache->{$xtr_index}->{$prefix}->{'flows'}->{$ip1 . "-" . $ip2}))
+	if (defined($cache{$xtr_index}->{$prefix}->{'flows'}->{$ip1 . "-" . $ip2}))
 	{
 		return $ip1 . "-" . $ip2;
 	}	
-	elsif(defined(%cache->{$xtr_index}->{$prefix}->{'flows'}->{$ip2 . "-" . $ip1}))
+	elsif(defined($cache{$xtr_index}->{$prefix}->{'flows'}->{$ip2 . "-" . $ip1}))
 	{
 		return $ip2 . "-" . $ip1;
 	}
@@ -1682,7 +1685,7 @@ sub countFlowsPerCache
 {
 	my $xtr_index = shift or die "Parameter is missing: countFlowsPerCache->\$xtr_index\n";
 	my $prefix = shift or die "Parameter is missing: countFlowsPerCache->\$prefix\n";
-	my $flows_ref = %cache->{$xtr_index}->{$prefix}->{'flows'};
+	my $flows_ref = $cache{$xtr_index}->{$prefix}->{'flows'};
 	return scalar keys %$flows_ref;
 }
 
@@ -1697,18 +1700,18 @@ sub movePrefix
 	my $from_xtr = $xtr_indexes[$::FAILXTR]; 
 	my $to_xtr = $xtr_indexes[$::NONFAILXTR];
 
-	%patricia_int_prefixes->{$from_xtr}->remove_string($prefix);
-	%patricia_int_prefixes->{$to_xtr}->add_string($prefix);
+	$patricia_int_prefixes{$from_xtr}->remove_string($prefix);
+	$patricia_int_prefixes{$to_xtr}->add_string($prefix);
 }
 
 sub initRecoveringXTR()
 {
 	my $xtr_index = $xtr_indexes[$::FAILXTR];
-	my $tmpCache = %cache->{$xtr_index};
+	my $tmpCache = $cache{$xtr_index};
 
 	while (my($key, $value) = each(%$tmpCache))
 	{
-		delete %cache->{$xtr_index}->{$key};
+		delete $cache{$xtr_index}->{$key};
 	}
 }
 
@@ -1721,18 +1724,18 @@ sub recoverXTRs
 	{
 		my $xtr_index = $xtr_indexes[$i];
 
-		%patricia_int_prefixes_backup->{$xtr_index}->climb(
+		$patricia_int_prefixes_backup{$xtr_index}->climb(
 			sub 
 			{ 
-				%patricia_int_prefixes->{$xtr_index_fail}->remove_string($_[0]);
-				%patricia_int_prefixes->{$xtr_index_nonfail}->remove_string($_[0]);
+				$patricia_int_prefixes{$xtr_index_fail}->remove_string($_[0]);
+				$patricia_int_prefixes{$xtr_index_nonfail}->remove_string($_[0]);
 			}
 		);
 
-		%patricia_int_prefixes_backup->{$xtr_index}->climb(
+		$patricia_int_prefixes_backup{$xtr_index}->climb(
 			sub 
 			{ 
-				%patricia_int_prefixes->{$xtr_index}->add_string($_[0]); 
+				$patricia_int_prefixes{$xtr_index}->add_string($_[0]); 
 			}
 		);
 	}
