@@ -87,8 +87,8 @@ trace-summary log
 34. dns_pkts 
 35. ntp_pkts
 36. edudp_pkts
-37. known_tcp_pkts       # known: port number <= 1024 
-38. un_tcp_pkts	         # un (unknown): port number > 1024
+37. known_tcp_pkts       
+38. un_tcp_pkts	         
 39. known_udp_pkts
 40. un_udp_pkts
 41. http_miss
