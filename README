@@ -1,3 +1,17 @@
+# Locator/ID Separation Protocol Cache Emulator
+
+The LISP Cache emulator is software that is able to emulate the tasks of LISP
+xTRs and that is essentially designed to be fed with packet-level Internet
+traffic. Therefore, like a real LISP router, the emulator needs two data
+stores, namely the LISP Database and the LISP Cache.  The LISP Database is a
+manually configured list of internal network prefixes (EIDs), while the LISP
+Cache stores EID-to-RLOC mapping when there is a request for it and removes it
+according to the preconfigured expiration rule.  The emulator uses a local BGP
+prefixes database fed with the list of BGP prefixes published by the iPlane
+Project. This BGP prefixes database is used to group EID-to-RLOCs mappings with
+the granularity of existing BGP prefixes.
+
+
 -------------------------------------------------
 NOTE
 ---------------------------------------------------
