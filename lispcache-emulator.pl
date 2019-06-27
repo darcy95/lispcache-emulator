@@ -1,6 +1,7 @@
 #!/usr/bin/perl 
 
 use strict;
+use lib '.';
 no strict 'subs';
 no strict 'refs';
 
@@ -93,7 +94,7 @@ $::TTL = $::TIMEOUT;
 $::SUFFIX = "-t" . $::TTL . "-g" . $::GRANULARITY if ($::SUFFIX eq "");
 
 my $config_prefixes_bgp = $::DIRECTORY . "/config-prefixes-bgp.txt";
-die "File Not Found: " . $config_prefixes_bgp . "\n" unless (-e $config_prefixes_bgp); 
+#die "File Not Found: " . $config_prefixes_bgp . "\n" unless (-e $config_prefixes_bgp); 
 
 my $config_prefixes = $::DIRECTORY . "/lisp-database";
 die "File Not Found: " . $config_prefixes . "\n" unless (-e $config_prefixes); 
