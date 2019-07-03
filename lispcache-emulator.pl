@@ -93,8 +93,8 @@ printUsage() unless ($::FAIL_OR_RECOVER eq "none" || $::FAIL_OR_RECOVER eq "fail
 $::TTL = $::TIMEOUT;
 $::SUFFIX = "-t" . $::TTL . "-g" . $::GRANULARITY if ($::SUFFIX eq "");
 
-my $config_prefixes_bgp = $::DIRECTORY . "/config-prefixes-bgp.txt";
-#die "File Not Found: " . $config_prefixes_bgp . "\n" unless (-e $config_prefixes_bgp); 
+my $config_prefixes_bgp = $::DIRECTORY . "/bgp-prefixes";
+system "touch " . $config_prefixes_bgp unless (-e $config_prefixes_bgp); 
 
 my $config_prefixes = $::DIRECTORY . "/lisp-database";
 die "File Not Found: " . $config_prefixes . "\n" unless (-e $config_prefixes); 
@@ -147,11 +147,12 @@ prnt("Non-failing/recovering xTR: " . $::NONFAILXTR . " (-1 mean no failure/reco
 prnt("\n");
 prnt("Starting the process\n");
 
-unless (-e $config_prefixes_bgp)
+unless (-s $config_prefixes_bgp)
 {
-	prnt("Downloading bgp prefixes from iPlane\n\n");
-	my $wgetopt = ($::QUIET eq "yes") ? "-q" : "-v";
-	system "wget " . $wgetopt . " http://iplane.cs.washington.edu/data/origin_as_mapping.txt -O " . $config_prefixes_bgp;
+	#prnt("Downloading bgp prefixes from iPlane\n\n");
+	#my $wgetopt = ($::QUIET eq "yes") ? "-q" : "-v";
+	#system "wget " . $wgetopt . " http://iplane.cs.washington.edu/data/origin_as_mapping.txt -O " . $config_prefixes_bgp;
+	system "bash bootstrap-data.sh";
 	prnt("\n");
 }
 

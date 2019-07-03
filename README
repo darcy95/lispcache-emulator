@@ -1,4 +1,4 @@
-# Locator/ID Separation Protocol Cache Emulator
+## Locator/ID Separation Protocol Cache Emulator
 
 The LISP Cache emulator is software that is able to emulate the tasks of LISP
 xTRs and that is essentially designed to be fed with packet-level Internet
@@ -12,117 +12,14 @@ Project. This BGP prefixes database is used to group EID-to-RLOCs mappings with
 the granularity of existing BGP prefixes.
 
 
--------------------------------------------------
-NOTE
----------------------------------------------------
-In this version, TTL is used instead of the timeout, meaning that a cache entry
-will be refreshed when it is used within the last minute (60 seconds) before
-TTL expires.
+## Pulling
 
---------------------------------
-Dependencies
---------------------------------
-1. Perl
-2. Net::Patricia module 
-    - In Ubuntu: sudo apt-get install libnet-patricia-perl
+$ sudo docker pull darcy95/lispcache-emulator
 
---------------------------------
-How to use
--------------------------------- 
-cat <your.pcap> | ipsumdump -t -s -d -S -D -p -l -F -Q -K -W --id --payload -q | ./lispcache-emulator.pl
+## Usage examples
 
-------------------------------
-cache-miss-packet log
-------------------------------
-1. Timestamp (-t)
-2. Src IP address (-s)
-3. Dst IP address (-d)
-4. Src Port (-S)
-5. Dst Port (-D)
-6. Transport layer protocol [TCP/UDP/number] (-p)
-7. Payload length (-l)
-8. TCP flags [- for other protocols] (-F)
-9. TCP sequence number (-Q)
-10. TCP acknowledge number (-K)
-11. TCP window size (-W)
-12. IP-ID (--id)
-13. Part of payload (--payload)
+(currently working on it)
 
---------------------------
-trace-summary log
---------------------------
-1. slicestart
-2. sliceend
-3. entries
-4. timeouts
-5. pkts
-6. inpkts
-7. outpkts
-8. hit
-9. inhit
-10. outhit
-11. miss
-12. inmiss
-13. outmiss
-14. flows_total
-15. flows_tcp_in
-16. flows_tcp_out
-17. flows_udp_in
-18. flows_udp_out
-19. flows_other_in
-20. flows_other_out
-21. bytes
-22. inbytes
-23. outbytes
-24. unipfx
-25. inpfx
-26. outpfx
-27. intpfx
-28. http_pkts
-29. nntp_pkts
-30. edtcp_pkts
-31. torrent_pkts
-32. ftp_pkts
-33. smtp_pkts
-34. dns_pkts 
-35. ntp_pkts
-36. edudp_pkts
-37. known_tcp_pkts       
-38. un_tcp_pkts	         
-39. known_udp_pkts
-40. un_udp_pkts
-41. http_miss
-42. nntp_miss
-43. edtcp_miss
-44. torrent_miss
-45. ftp_miss
-46. smtp_miss
-47. dns_miss
-48. ntp_miss
-49. edudp_miss
-50. known_tcp_miss
-51. un_tcp_miss
-52. known_udp_miss
-53. un_udp_miss
-54. num_renewed_caches
+## Source code
 
---------------------------
-cache-expires log format
---------------------------
-1. Prefix
-2. A timestamp of the entry's creation
-3. A timestamp the entry expires
-4. Life time of the entry
-5. Direction of the first packet
-6. Direction of the prefix
-7. Unix timestamp that the entry becomes bi-directional
-8. Number of packets until the entry becomes bi-directional
-9. Total volume until the entry becomes bi-directional
-10. Total number of packets delivered for this cache entry
-11. In-packets only
-12. Out-packets only
-13. Total bytes
-14. In-bytes
-15. Out-bytes
-16. A total number of flows within this cache entry
-17. A total number of cache renewals 
+git clone https://github.com/darcy95/lispcache-emulator
