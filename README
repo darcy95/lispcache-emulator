@@ -18,7 +18,19 @@ $ sudo docker pull darcy95/lispcache-emulator
 
 ## Usage examples
 
-(currently working on it)
+- For testing, find and download publicly available pcap files from the Internet.
+- For this example, we will clone from a github project of @markofu. git clone https://github.com/markofu/hackeire.git
+- We will use "hackeire/2011/pcap/c1.pcap" file from the repository.
+- By examining the trace with tcpdump, one can find out that most of the origin IP addresses of non-multicast traffic can be aggregated as 10.20.0.0/24 and 209.85.143.0/24.
+- We assume that these two network prefixes are internal network prefix of the two LISP xTR routers. Let's ignore the fact that 10.20.0.0/24 is the private IP address range. We only want to test how this emulator works. In fact, for the real locator & id separation routing, the source/destination IP addresses must be globally routable.
+- These two prefixes will be stored in the list-database file. The first column is the index of the xTR router and the second column is the network prefix.
+- So, it will look like this after you add the information to the list-database file:
+  1 10.20.0.0/24
+  2 209.85.143.0/24
+- Now, we feed this pcap file to the emulator:
+  cat hackeire/2011/pcap/c1.pcap | docker run --rm -i darcy95/lispcache-emulator /bin/bash xTR.sh
+- After feeding is done, you can find several log files on the working directory. Read the DESCRIPTION file to find out what each column of the log files is.
+- If you want to modify the experiment for your project (or research), check out the parameters of the script by invoking ./lispcache-emulator.pl --help and by examining xTR.sh batch script.
 
 ## Source code
 
