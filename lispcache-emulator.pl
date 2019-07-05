@@ -215,10 +215,11 @@ for (my $i = 0 ; $i < $num_index ; $i++)
 	my $logfileref = $FD_LOGFILE . $xtr_indexes[$i];
 	my $cachelogfileref = $FD_CACHELOGFILE . $xtr_indexes[$i];
 	my $misspacketfileref = $FD_MISSPACKETFILE . $xtr_indexes[$i];
+	my $logdir = "/logs";
 
-	open($logfileref, "> trace-summary" . $::SUFFIX . "-xtr-" . $xtr_indexes[$i] . ".log");
-	open($cachelogfileref, "> cache-expires" . $::SUFFIX . "-xtr-" . $xtr_indexes[$i] . ".log");
-	open($misspacketfileref, "> cachemiss-packets" . $::SUFFIX . "-xtr-" . $xtr_indexes[$i] . ".log");
+	open($logfileref, "> " . $logdir . "/trace-summary" . $::SUFFIX . "-xtr-" . $xtr_indexes[$i] . ".log");
+	open($cachelogfileref, "> " . $logdir . "/cache-expires" . $::SUFFIX . "-xtr-" . $xtr_indexes[$i] . ".log");
+	open($misspacketfileref, "> " . $logdir . "/cachemiss-packets" . $::SUFFIX . "-xtr-" . $xtr_indexes[$i] . ".log");
 }
 
 # --------------------------------------------------
