@@ -27,9 +27,9 @@ $ sudo docker pull darcy95/lispcache-emulator
 - So, it will look like this after you add the information to the list-database file:
   1 10.20.0.0/24
   2 209.85.143.0/24
-- Now, we feed this pcap file to the emulator:
-  cat hackeire/2011/pcap/c1.pcap | sudo docker run -d -i darcy95/lispcache-emulator --name lispemul /bin/bash xTR.sh
-- After feeding is done, you can find several log files in /logs inside the container or in a mounted path of the host. sudo docker exec -it lispemul /bin/bash
+- Now, run an instance of the image as a background container: sudo docker run -d -it --rm --name lisp darcy95/lispcache-emulator /bin/bash
+- Then, feed the pcap file to the emulator: cat hackeire/2011/pcap/c1.pcap | sudo docker exec -i lisp /bin/bash xTR.sh
+- After feeding is done, you can find several log files in /logs inside of the container (or in a mounted path of the host): sudo docker exec -it lispemul /bin/bash
 - Read the DESCRIPTION file to find out what each column of the log files is.
 - If you want to modify the experiment for your project (or research), check out the parameters of the script by invoking ./lispcache-emulator.pl --help and by examining xTR.sh batch script.
 
