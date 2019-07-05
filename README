@@ -3,13 +3,22 @@
 The LISP Cache emulator is software that is able to emulate the tasks of LISP
 xTRs and that is essentially designed to be fed with packet-level Internet
 traffic. Therefore, like a real LISP router, the emulator needs two data
-stores, namely the LISP Database and the LISP Cache.  The LISP Database is a
+stores, namely the LISP Database and the LISP Cache. The LISP Database is a
 manually configured list of internal network prefixes (EIDs), while the LISP
 Cache stores EID-to-RLOC mapping when there is a request for it and removes it
 according to the preconfigured expiration rule.  The emulator uses a local BGP
 prefixes database fed with the list of BGP prefixes published by the iPlane
 Project. This BGP prefixes database is used to group EID-to-RLOCs mappings with
 the granularity of existing BGP prefixes.
+
+If you are not familiar with LOCator/ID Sepration Protocol (LISP), I recommend
+you to read following papers as the entry point. Don't forget to cite them if you
+use this emulator for your research project.
+
+* Caching Locator/ID mappings: An experimental scalability analysis and its implications, http://dx.doi.org/10.1016/j.comnet.2012.11.007
+* A Deep Dive into the LISP Cache and What ISPs Should Know about It, http://dx.doi.org/10.1007/978-3-642-30045-5_30
+* A Local Approach to Fast Failure Recovery of LISP Ingress Tunnel Routers, http://dx.doi.org/10.1007/978-3-642-30045-5_30
+
 
 
 ## Pulling
@@ -18,20 +27,21 @@ $ sudo docker pull darcy95/lispcache-emulator
 
 ## Usage examples
 
-- For testing, find and download publicly available pcap files from the Internet.
+- For testing, find and download publicly available pcap files from the Internet
 - For this example, we will clone from a github project of @markofu. git clone https://github.com/markofu/hackeire.git
-- We will use "hackeire/2011/pcap/c1.pcap" file from the repository.
-- By examining the trace with tcpdump, one can find out that most of the origin IP addresses of non-multicast traffic can be aggregated as 10.20.0.0/24 and 209.85.143.0/24.
-- We assume that these two network prefixes are internal network prefix of the two LISP xTR routers. Let's ignore the fact that 10.20.0.0/24 is the private IP address range. We only want to test how this emulator works. In fact, for the real locator & id separation routing, the source/destination IP addresses must be globally routable.
-- These two prefixes will be stored in the list-database file. The first column is the index of the xTR router and the second column is the network prefix.
+- We will use "hackeire/2011/pcap/c1.pcap" file from the repository
+- By examining the trace with tcpdump, one can find out that most of the origin IP addresses of non-multicast traffic can be aggregated as 10.20.0.0/24 and 209.85.143.0/24
+- We assume that these two network prefixes are internal network prefix of the two LISP xTR routers. Let's ignore the fact that 10.20.0.0/24 is the private IP address range. We only want to test how this emulator works. In fact, for the real locator & id separation routing, the source/destination IP addresses must be globally routable
+- These two prefixes will be stored in the list-database file. The first column is the index of the xTR router and the second column is the network prefix
 - So, it will look like this after you add the information to the list-database file:
-  1 10.20.0.0/24
-  2 209.85.143.0/24
-- Now, run an instance of the image as a background container: sudo docker run -d -it --rm --name lisp darcy95/lispcache-emulator /bin/bash
-- Then, feed the pcap file to the emulator: cat hackeire/2011/pcap/c1.pcap | sudo docker exec -i lisp /bin/bash xTR.sh
-- After feeding is done, you can find several log files in /logs inside of the container (or in a mounted path of the host): sudo docker exec -it lispemul /bin/bash
+  - 1 10.20.0.0/24
+  - 2 209.85.143.0/24
+- Now, run an instance of the image as a background container: sudo docker run -d -it --rm --name lispemul darcy95/lispcache-emulator /bin/bash
+- Then, feed the pcap file to the emulator: cat hackeire/2011/pcap/c1.pcap | sudo docker exec -i lispemul /bin/bash xTR.sh
+- After feeding is done, you can find several log files in /logs inside of the container: sudo docker exec -it lispemul /bin/bash
+- You can also find the log files in the mounted directory on the host. The directory is typically the directory with a long long name under /var/lib/docker/volumes directory
 - Read the DESCRIPTION file to find out what each column of the log files is.
-- If you want to modify the experiment for your project (or research), check out the parameters of the script by invoking ./lispcache-emulator.pl --help and by examining xTR.sh batch script.
+- If you want to modify the experiment for your project (or research), check out the parameters of the script by invoking ./lispcache-emulator.pl --help and by examining xTR.sh batch script
 
 ## Source code
 
